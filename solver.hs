@@ -7,7 +7,7 @@ type LineNumber = Int
 
 type Assumptions = S.Set Formulae
 
-data Formulae = Sentence {left :: Formulae, connective :: Connective, right :: Formulae}
+data Formulae = Sentence Formulae Connective Formulae
               | Atom Char
     deriving (Eq, Ord, Show)
 
@@ -18,9 +18,21 @@ data Connective = Conjunction
 data Rule = AssmptionRule
           | ConjuncRuleIntro Proof Proof
           | ConjuncRuleElimi Proof
-          | ImplicaRuleIntro Proof Discharge
+          | ImplicaRuleIntro Proof Formulae
           | ImplicaRuleElimi Proof Proof
     deriving (Show, Eq, Ord)
+
+main :: IO Bool
+main = proofSequent $ Sequent 5 (S.singleton (Atom 'p')) (Sentence (Sentence (Atom 'p') Implication (Atom 'q')) Implication (Sentence (Atom 'p') Conjunction (Atom 'q'))) (
+                                ImplicaRuleIntro (
+                                    (Sequent 4 (S.fromList [Sentence (Atom 'p') Implication (Atom 'q'), Atom 'p']) (Sentence (Atom 'p') Conjunction (Atom 'q')) (ConjuncRuleIntro
+                                        (Sequent 1 (S.singleton (Atom 'p')) (Atom 'p') AssmptionRule)
+                                        (Sequent 3 (S.fromList [Atom 'p', Sentence (Atom 'p') Implication (Atom 'q')]) (Atom 'q') (ImplicaRuleElimi
+                                            (Sequent 1 (S.singleton (Atom 'p')) (Atom 'p') AssmptionRule)
+                                            (Sequent 2 (S.singleton (Sentence (Atom 'p') Implication (Atom 'q'))) (Sentence (Atom 'p') Implication (Atom 'q')) AssmptionRule )
+                                        ))
+                                    )))
+                                    (Sentence (Atom 'p') Implication (Atom 'q'))  )
 
 type Discharge = Formulae
 
@@ -39,7 +51,7 @@ checkAssumptionsWithDischarge assumptions listOfSequents discharge lineNum =
                         " does not contain the set of assumptions "
                         ++show (S.delete discharge (sequentAssump x))++
                         " spesified by the sequent's rule"
-                    checkAssumptions assumptions xs lineNum
+                    checkAssumptionsWithDischarge assumptions xs discharge lineNum
                     return False
 
 checkAssumptions :: Assumptions -> [Proof] ->  LineNumber -> IO Bool
@@ -81,27 +93,27 @@ conjuncRuleIntroCheck assumptions formulae lineNum fromA fromB = do
     where isInstanceOfRule :: IO Bool
           isInstanceOfRule =
             case formulae of
-                Sentence left Conjunction right
-                    | left == sequentFormulae fromA && right == sequentFormulae fromB -> return True
-                    | left == sequentFormulae fromA -> do
+                Sentence l Conjunction r
+                    | l == sequentFormulae fromA && r == sequentFormulae fromB -> return True
+                    | l == sequentFormulae fromA -> do
                         putStrLn $ "The sequent "
                             ++show (sequentLineNum fromB)++
                             " referenced in your conjuction rule at line "
                             ++show lineNum++
                             " is not the same as the right hand side of your formulae "
-                            ++show right++
+                            ++show r++
                             ". To fix reference a sequent with the formulae "
-                            ++show right
+                            ++show r
                         return False
-                    | right == sequentFormulae fromB -> do
+                    | r == sequentFormulae fromB -> do
                         putStrLn $ "The sequent "
                             ++show (sequentLineNum fromA)++
                             " referenced in your conjuction rule at line "
                             ++show lineNum++
                             " is not the same as the left hand side of your formulae "
-                            ++show left++
+                            ++show l++
                             ". To fix reference a sequent with the formulae "
-                            ++show left
+                            ++show l
                         return False
                     | otherwise -> do
                         putStrLn $ "The sequents "
@@ -111,13 +123,13 @@ conjuncRuleIntroCheck assumptions formulae lineNum fromA fromB = do
                             " referenced in your conjuction rule at line "
                             ++show lineNum++
                             " are not the same as the left hand side or right hand side of your formulae "
-                            ++show left++
+                            ++show l++
                             " , "
-                            ++show right++
+                            ++show r++
                             ". To fix reference a sequent with the formulae "
-                            ++show left++
+                            ++show l++
                             " and "
-                            ++show right++
+                            ++show r++
                             "."
                         return False
                 _ -> do
@@ -136,8 +148,8 @@ conjuncRuleElimiCheck assumptions formulae lineNum fromSequent = do
     where isInstanceOfRule :: IO Bool
           isInstanceOfRule =
             case sequentFormulae fromSequent of
-                Sentence left Conjunction right
-                    | formulae == left || formulae == right -> return True
+                Sentence l Conjunction r
+                    | formulae == l || formulae == r -> return True
                     | otherwise -> do
                         putStrLn $ "The Sequent "
                             ++show formulae++
@@ -166,8 +178,8 @@ implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump 
     where isInstanceOfRule :: IO Bool
           isInstanceOfRule =
             case formulae of
-                Sentence left Implication right
-                    | left == dischargedAssump && right == formulae && S.member dischargedAssump (sequentAssump fromSequent) -> return True
+                Sentence l Implication r
+                    | l == dischargedAssump && r == formulae && S.member dischargedAssump (sequentAssump fromSequent) -> return True
                     | otherwise -> return False
                 _ -> do
                     putStrLn $ "The Sequent at line "
@@ -183,12 +195,21 @@ implicaRuleElimiCheck assumptions formulae lineNum fromA fromB = do
         return (x && y)
 
     where isInstanceOfRule :: IO Bool
-          isInstanceOfRule
-            | formulae == right (sequentFormulae fromA) =
-                return (sequentFormulae fromB == left (sequentFormulae fromA))
-            | formulae == right (sequentFormulae fromB) =
-                return (sequentFormulae fromA == left (sequentFormulae fromB))
-            | otherwise = return False
+          isInstanceOfRule = case (sequentFormulae fromA) of
+            Sentence l Implication r
+                | formulae == r ->
+                    return (sequentFormulae fromB == l)
+                | otherwise -> return False
+
+            _ -> case (sequentFormulae fromB) of
+                Sentence l Implication r
+                    | formulae == r ->
+                        return (sequentFormulae fromA == l)
+                    | otherwise ->
+                        return False
+                _ -> do
+                    putStrLn $ "not an instance of ImplicaRuleElimi"
+                    return False
 
 proofSequent :: Proof -> IO Bool
 proofSequent (Sequent seqLineNum assumptions formulae rule) =
@@ -213,5 +234,5 @@ proofSequent (Sequent seqLineNum assumptions formulae rule) =
             z <- proofSequent fromB
             return (y && x && z)
 
-main :: IO ()
-main = return ()
+test :: Bool
+test = undefined
