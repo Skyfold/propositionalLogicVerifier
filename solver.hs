@@ -36,22 +36,35 @@ main = proofSequent $ Sequent 5 (S.singleton (Atom 'p')) (Sentence (Sentence (At
 
 type Discharge = Formulae
 
-checkAssumptionsWithDischarge :: Assumptions -> [Proof] -> Discharge -> LineNumber -> IO Bool
-checkAssumptionsWithDischarge assumptions listOfSequents discharge lineNum =
-        case listOfSequents of
+checkAssumptionsWithDischarge :: Assumptions -> [(Proof, Maybe Formulae)] -> LineNumber -> IO Bool
+checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
+        case listOfSequentsDischarges of
             [] -> return True
-            x:xs
-                | S.isSubsetOf (S.delete discharge (sequentAssump x)) assumptions ->
-                    checkAssumptionsWithDischarge assumptions xs discharge lineNum
+            ((proof, Just discharge):xs)
+                | S.isSubsetOf (S.delete discharge (sequentAssump proof)) assumptions ->
+                    checkAssumptionsWithDischarge assumptions xs lineNum
                 | otherwise -> do
                     putStrLn $ "Your sequent at line "
                         ++show lineNum++
                         " with assumptions "
                         ++show assumptions++
                         " does not contain the set of assumptions "
-                        ++show (S.delete discharge (sequentAssump x))++
+                        ++show (S.delete discharge (sequentAssump proof))++
                         " spesified by the sequent's rule"
-                    checkAssumptionsWithDischarge assumptions xs discharge lineNum
+                    checkAssumptionsWithDischarge assumptions xs lineNum
+                    return False
+            ((proof, Nothing):xs)
+                | S.isSubsetOf (sequentAssump proof) assumptions ->
+                    checkAssumptionsWithDischarge assumptions xs lineNum
+                | otherwise -> do
+                    putStrLn $ "Your sequent at line "
+                        ++show lineNum++
+                        " with assumptions "
+                        ++show assumptions++
+                        " does not contain the set of assumptions "
+                        ++show proof++
+                        " spesified by the sequent's rule"
+                    checkAssumptionsWithDischarge assumptions xs lineNum
                     return False
 
 checkAssumptions :: Assumptions -> [Proof] ->  LineNumber -> IO Bool
@@ -171,7 +184,7 @@ conjuncRuleElimiCheck assumptions formulae lineNum fromSequent = do
 
 implicaRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Formulae ->IO Bool
 implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump = do
-        x <- checkAssumptionsWithDischarge assumptions [fromSequent] dischargedAssump lineNum
+        x <- checkAssumptionsWithDischarge assumptions [(fromSequent, Just dischargedAssump)] lineNum
         y <-isInstanceOfRule
         return (x && y)
 
@@ -179,8 +192,36 @@ implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump 
           isInstanceOfRule =
             case formulae of
                 Sentence l Implication r
-                    | l == dischargedAssump && r == formulae && S.member dischargedAssump (sequentAssump fromSequent) -> return True
-                    | otherwise -> return False
+                    | l == dischargedAssump && r == (sequentFormulae fromSequent) -> return True
+                    | l == dischargedAssump -> do
+                        putStrLn $ "The right side of the Implication "
+                            ++show r++
+                            " in the Sequent at line "
+                            ++show lineNum++
+                            " is not equivalent to the forumlae "
+                            ++show formulae++
+                            " so it is not a valid sequent using the implication rule."
+                        return False
+                    | r == (sequentFormulae fromSequent) -> do
+                        putStrLn $ " The left side of the Implication "
+                            ++show l++
+                            " in the Sequent at line "
+                            ++show lineNum++
+                            " is not equivalent to the formuale "
+                            ++show dischargedAssump++
+                            ". What you have discharged must be the same as the left side of the implication, aka "
+                            ++show l++
+                            " in order to be a valid form of the implication introduction rule."
+                        return False
+                    | otherwise -> do
+                        putStrLn $ " Maybe you got your line numbers mixed up, check "
+                            ++show lineNum++
+                            " it could be an instace of the implication introduction rule, but neither the forumlae that you reference in line "
+                            ++show (sequentLineNum fromSequent)++
+                            " nor the discharge "
+                            ++show dischargedAssump++
+                            " make this a valid instance of the implication introduction rule."
+                        return False
                 _ -> do
                     putStrLn $ "The Sequent at line "
                         ++show lineNum++
