@@ -43,7 +43,7 @@ Formulae : var { Atom $1 }
 
 RuleReference : 'A' { AssmptionReference }
               | num ',' num 'and' 'I' { ConjuncRefIntro $1 $3 }
-              | num 'E' { ConjuncRefElimi $1 }
+              | num 'and' 'E' { ConjuncRefElimi $1 }
               | num ',' num '->' 'E' { ImplicaRefElimi $1 $3 }
               | num '[' num ']' '->' 'I' { ImplicaRefIntro $1 $3 }
               | num ',' num '[' num ']' 'RAA' { RaaRef $1 $3 (Just $5) }
