@@ -5,6 +5,7 @@ import Parser
 import Token (alexScanTokens)
 import qualified Data.Vector as V
 import Control.Monad.Writer.Lazy
+import qualified Data.List as L
 
 main :: IO ()
 main = do
@@ -41,22 +42,38 @@ convertToTree list = makeProof (V.fromList list)
           v!!!n = v V.! (n - 1) 
             
           getRules :: V.Vector Proof -> RuleReference -> Rule
-          getRules vec rule = case rule of
-                                     AssmptionReference -> AssmptionRule
-                                     ConjuncRefIntro num1 num2 -> 
-                                       ConjuncRuleIntro (vec !!! num1) (vec !!! num2)
-                                     ConjuncRefElimi num1 -> 
-                                       ConjuncRuleElimi (vec !!! num1) 
-                                     ImplicaRefIntro num1 num2 -> 
-                                       ImplicaRuleIntro (vec !!! num1) (sequentFormulae (vec !!! num2))
-                                     ImplicaRefElimi num1 num2 -> 
-                                       ImplicaRuleElimi (vec !!! num1) (vec !!! num2)
-                                     RaaRef num1 num2 m-> 
-                                        case m of
-                                          Just x -> 
-                                            RaaRule (vec !!! num1) (vec !!! num2) (Just (sequentFormulae (vec !!! x)))
-                                          Nothing ->
-                                            RaaRule (vec !!! num1) (vec !!! num2) Nothing 
+          getRules vec rule = 
+              case rule of
+                AssmptionReference -> AssmptionRule
+                ConjuncRefIntro num1 num2 -> 
+                    ConjuncRuleIntro (vec !!! num1) (vec !!! num2)
+                ConjuncRefElimi num1 -> 
+                    ConjuncRuleElimi (vec !!! num1) 
+                ImplicaRefIntro num1 num2 -> 
+                    ImplicaRuleIntro (vec !!! num1) (sequentFormulae (vec !!! num2))
+                ImplicaRefElimi num1 num2 -> 
+                    ImplicaRuleElimi (vec !!! num1) (vec !!! num2)
+                RaaRef num1 num2 m-> 
+                    case m of
+                        Just x -> 
+                            RaaRule (vec !!! num1) (vec !!! num2) (Just (sequentFormulae (vec !!! x)))
+                        Nothing ->
+                            RaaRule (vec !!! num1) (vec !!! num2) Nothing 
+                NegationRefIntro num1 m ->
+                    case m of
+                        Just x -> 
+                            NegationRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! x)))
+                        Nothing ->
+                            NegationRuleIntro (vec !!! num1)  Nothing 
+                NegationRefElimi -> NegationRuleElimi
+                DoubleNegationRefElimi num1 -> 
+                    DoubleNegationRuleElimi (vec !!! num1) 
+                OrRefElimi num1 num2 m1 num3 m2 ->
+                    OrRuleElimi (vec !!! num1) (vec !!! num2) (sequentFormulae (vec !!! m1)) (vec !!! num3) (sequentFormulae (vec !!! m2))
+                OrRefIntro num1 ->
+                    OrRuleIntro (vec !!! num1) 
+
+
 
                                       
 
@@ -71,7 +88,6 @@ test2 = Sequent 5 (S.singleton (Atom "p")) (Sentence (Sentence (Atom "p") Implic
                                         ))
                                     )))
                                     (Sentence (Atom "p") Implication (Atom "q"))  )
-
 
 checkAssumptionsWithDischarge :: Assumptions -> [(Proof, Maybe Formulae)] -> LineNumber -> Writer [String] Bool
 checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
@@ -296,44 +312,203 @@ implicaRuleElimiCheck assumptions formulae lineNum fromA fromB = do
 raaRuleCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Proof -> Maybe Formulae -> Writer [String] Bool
 raaRuleCheck assumptions formulae lineNum fromA fromB maybeFormulae = do
         x <- checkAssumptionsWithDischarge assumptions [(fromA, maybeFormulae), (fromB, maybeFormulae)] lineNum
+        y <- isInstanceOfRule
+        z <- checkFormulae
+        return (x && y && z) 
+
+    where isInstanceOfRule :: Writer [String] Bool
+          isInstanceOfRule = 
+              case (sequentFormulae fromA) of
+                Negated x
+                    | x == (sequentFormulae fromB) -> return True
+                    | otherwise -> do
+                        reportError $ show lineNum++ " : "
+                            ++show (sequentFormulae fromA)++
+                            " from "
+                            ++show (sequentLineNum fromA)++
+                            " is not the negation of "
+                            ++show (sequentFormulae fromB)++
+                            " from "
+                            ++show (sequentLineNum fromB)
+                        return False
+
+                _ -> case (sequentFormulae fromB) of
+                    Negated x
+                            | x == (sequentFormulae fromA) -> return True
+                            | otherwise -> do
+                                reportError $ show lineNum++ " : "
+                                    ++show (sequentFormulae fromB)++
+                                    " from "
+                                    ++show (sequentLineNum fromB)++
+                                    " is not the negation of "
+                                    ++show (sequentFormulae fromA)++
+                                    " from "
+                                    ++show (sequentLineNum fromA)
+                                return False
+                    _ -> do
+                        reportError $ show lineNum++ " : neither "
+                            ++show (sequentFormulae fromB)++
+                            " nor "
+                            ++show (sequentFormulae fromA)++
+                            " contain ¬ outside of their main connective."
+                        return False
+
+          checkFormulae :: Writer [String] Bool
+          checkFormulae = case maybeFormulae of
+                            Just x
+                              | Negated x == formulae -> return True
+                              | otherwise -> do
+                                  reportError $ show lineNum++ " : "
+                                      ++show formulae++
+                                      " should be "
+                                      ++show (Negated x)
+                                  return False
+                            Nothing -> return True
+
+negationRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Maybe Formulae -> Writer [String] Bool
+negationRuleIntroCheck assumptions formulae lineNum fromA maybeFormulae = do
+        x <- checkAssumptionsWithDischarge assumptions [(fromA, maybeFormulae)] lineNum
+        y <- isInstanceOfRule
+        z <- checkFormulae
+        return (x && y && z)
+
+    where isInstanceOfRule :: Writer [String] Bool
+          isInstanceOfRule 
+            | (sequentFormulae fromA) == Contradiction = return True
+            | otherwise = do
+                reportError $ show lineNum++ " : "
+                    ++show (sequentFormulae fromA)++
+                    " at line "
+                    ++show (sequentLineNum fromA)++
+                    " should be ⊥ "
+                return False
+
+          checkFormulae :: Writer [String] Bool
+          checkFormulae = case maybeFormulae of
+                            Just x
+                              | Negated x == formulae -> return True
+                              | otherwise -> do
+                                  reportError $ show lineNum++ " : "
+                                      ++show formulae++
+                                      " should be "
+                                      ++show (Negated x)
+                                  return False
+                            Nothing -> return True
+
+negationRuleElimCheck :: Assumptions -> Formulae -> LineNumber -> Writer [String] Bool
+negationRuleElimCheck assumptions formulae lineNum
+    | L.any (\a -> S.member (Negated a) assumptions) (S.toList assumptions) =
+      return True
+    | otherwise = do
+        reportError $ show lineNum++ " : "
+            ++show (S.toList assumptions)++
+            " does not have a contradiction "
+        return False
+
+doubleNegationRuleElimiCheck :: Assumptions -> Formulae ->  LineNumber -> Proof -> Writer [String] Bool
+doubleNegationRuleElimiCheck assumptions formulae lineNum fromA = do
+        x <- checkAssumptions assumptions [fromA] lineNum
         y <-isInstanceOfRule
         return (x && y)
 
     where isInstanceOfRule :: Writer [String] Bool
           isInstanceOfRule = case (sequentFormulae fromA) of
-                               Negated x
-                                    | x == (sequentFormulae fromB) -> return True
+                               Negated (Negated x)
+                                    | x == formulae -> return True
                                     | otherwise -> do
                                         reportError $ show lineNum++ " : "
                                             ++show (sequentFormulae fromA)++
-                                            " from "
-                                            ++show (sequentLineNum fromA)++
-                                            " is not the negation of "
-                                            ++show (sequentFormulae fromB)++
-                                            " from "
-                                            ++show (sequentLineNum fromB)
+                                            " ⊬ "
+                                            ++show formulae++
+                                            ". You need "
+                                            ++show (Negated (Negated formulae))++
+                                            " ⊢ "
+                                            ++show formulae
                                         return False
+                               _ -> do  
+                                   reportError $ show lineNum++ " : "
+                                        ++show (sequentFormulae fromA)++
+                                        " is not of the form ¬¬p "
+                                   return False
 
-                               _ -> case (sequentFormulae fromB) of
-                                    Negated x
-                                            | x == (sequentFormulae fromA) -> return True
-                                            | otherwise -> do
-                                                reportError $ show lineNum++ " : "
-                                                    ++show (sequentFormulae fromB)++
-                                                    " from "
-                                                    ++show (sequentLineNum fromB)++
-                                                    " is not the negation of "
-                                                    ++show (sequentFormulae fromA)++
-                                                    " from "
-                                                    ++show (sequentLineNum fromA)
-                                                return False
-                                    _ -> do
-                                        reportError $ show lineNum++ " : neither "
-                                            ++show (sequentFormulae fromB)++
-                                            " nor "
-                                            ++show (sequentFormulae fromA)++
-                                            " contain ¬ outside of their main connective."
-                                        return False
+orRuleElimiCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Proof -> Formulae -> Proof -> Formulae -> Writer [String] Bool
+orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromRight rightDischarge = do
+        x <- checkAssumptionsWithDischarge assumptions [(orSeq, Nothing), (fromLeft, Just leftDischarge), (fromRight, Just rightDischarge)] lineNum
+        y <- isInstanceOfRule
+        z <- checkFormulae
+        return (x && y && z)
+    where isInstanceOfRule :: Writer [String] Bool
+          isInstanceOfRule = 
+              case (sequentFormulae orSeq) of
+                Sentence l Disjunction r
+                    | l == leftDischarge && r == rightDischarge ->
+                          return True
+                    | otherwise -> do
+                        when (not (l == leftDischarge)) $
+                          reportError $ show lineNum++ " : Discharge "
+                            ++show leftDischarge++
+                            " should be "
+                            ++show l
+                        when (not (r == rightDischarge)) $
+                          reportError $ show lineNum++ " : Discharge "
+                            ++show rightDischarge++
+                            " should be "
+                            ++show r
+                        return False 
+                _ -> do
+                    reportError $ show lineNum++ " : The formulae "
+                        ++show (sequentFormulae orSeq)++
+                        " from line "
+                        ++show (sequentLineNum orSeq)++
+                        " should be of the form (a ⋁ b) "
+                    return False
+
+          checkFormulae :: Writer [String] Bool
+          checkFormulae
+            | formulae == (sequentFormulae fromLeft) && formulae == (sequentFormulae fromRight) =
+              return False
+            | otherwise = do
+                when (not (formulae == (sequentFormulae fromLeft))) $
+                    reportError $ show lineNum++ " : The formulae "
+                        ++show (sequentFormulae fromLeft)++
+                        " from line "
+                        ++show (sequentLineNum fromLeft)++
+                        " should be "
+                        ++show formulae
+                when (not (formulae == (sequentFormulae fromRight))) $
+                    reportError $ show lineNum++ " : The formulae "
+                        ++show (sequentFormulae fromRight)++
+                        " from line "
+                        ++show (sequentLineNum fromRight)++
+                        " should be "
+                        ++show formulae
+                return False 
+
+orRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Writer [String] Bool
+orRuleIntroCheck assumptions formulae lineNum fromA = do
+        x <- checkAssumptions assumptions [fromA] lineNum
+        y <-isInstanceOfRule
+        return (x && y)
+
+    where isInstanceOfRule :: Writer [String] Bool
+          isInstanceOfRule = 
+              case formulae of
+                Sentence l Disjunction r
+                    | l == (sequentFormulae fromA) || r == (sequentFormulae fromA) ->
+                      return True
+                    | otherwise -> do
+                        reportError $ show lineNum++ " : neither "
+                            ++show l++
+                            " nor "
+                            ++show r++
+                            " ≣ "
+                            ++show (sequentFormulae fromA)
+                        return False
+                _ -> do
+                    reportError $ show lineNum++ " : "
+                        ++show formulae++
+                        " does not have ⋁ as the main connective."
+                    return False
 
 proofSequent :: Proof -> Writer [String] Bool
 proofSequent (Sequent seqLineNum assumptions formulae rule) =
@@ -362,4 +537,25 @@ proofSequent (Sequent seqLineNum assumptions formulae rule) =
             x <- proofSequent fromA
             z <- proofSequent fromB
             return (y && x && z)
+        NegationRuleIntro fromA maybeFormulae -> do
+            y <- negationRuleIntroCheck assumptions formulae seqLineNum fromA maybeFormulae
+            x <- proofSequent fromA
+            return (y && x)
+        NegationRuleElimi -> negationRuleElimCheck assumptions formulae seqLineNum 
+        DoubleNegationRuleElimi fromA -> do
+            y <- doubleNegationRuleElimiCheck assumptions formulae seqLineNum fromA 
+            x <- proofSequent fromA
+            return (y && x)
+        OrRuleElimi orSeq fromLeft leftDischarge fromRight rightDischarge -> do
+            y <- orRuleElimiCheck assumptions formulae seqLineNum orSeq fromLeft leftDischarge fromRight rightDischarge 
+            x <- proofSequent orSeq
+            z <- proofSequent fromLeft
+            p <- proofSequent fromRight
+            return (y && x && z && p)
+        OrRuleIntro fromA -> do
+            y <- orRuleIntroCheck assumptions formulae seqLineNum fromA 
+            x <- proofSequent fromA
+            return (y && x)
+
+
 

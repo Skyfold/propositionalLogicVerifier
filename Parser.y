@@ -23,6 +23,8 @@ import Token
     'I' { Introduction }
     'not' { Negation }
     'RAA' { Absurd }
+    'or' { Or }
+    'bad' { Bad }
 
 %%
 
@@ -35,11 +37,14 @@ ProofLine : Assumptions '(' num ')' Formulae RuleReference { Seq $1 $3 $5 $6 }
 Assumptions : num { [$1] }
             | num ',' Assumptions { $1:$3 }
 
-Formulae : var { Atom $1 }
-         | Formulae '->' Formulae { Sentence $1 Implication $3 }
+Formulae : Formulae '->' Formulae { Sentence $1 Implication $3 }
          | Formulae 'and' Formulae { Sentence $1 Conjunction $3 }
+         | Formulae 'or' Formulae { Sentence $1 Disjunction $3 }
          | '(' Formulae ')' { $2 }
-         | 'not' Formulae { Negated $2 }
+         | 'not' '(' Formulae ')' { Negated $3 }
+         | var { Atom $1 }
+         | 'not' var { Negated (Atom $2) }
+         | 'bad' { Contradiction }
 
 RuleReference : 'A' { AssmptionReference }
               | num ',' num 'and' 'I' { ConjuncRefIntro $1 $3 }
@@ -48,4 +53,10 @@ RuleReference : 'A' { AssmptionReference }
               | num '[' num ']' '->' 'I' { ImplicaRefIntro $1 $3 }
               | num ',' num '[' num ']' 'RAA' { RaaRef $1 $3 (Just $5) }
               | num ',' num '[' ']' 'RAA' { RaaRef $1 $3 (Nothing) }
+              | num '[' num ']' 'not' 'I' { NegationRefIntro $1 (Just $3) }
+              | num '[' ']' 'not' 'I' { NegationRefIntro $1 Nothing }
+              | 'not' 'E' { NegationRefElimi }
+              | num 'not' 'not' 'E' { DoubleNegationRefElimi $1 }
+              | num ',' num '[' num ']' ',' num '[' num ']' 'or' 'E' { OrRefElimi $1 $3 $5 $8 $10 } 
+              | num 'or' 'I' { OrRefIntro $1 } 
 

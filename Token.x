@@ -29,8 +29,13 @@ tokens :-
     "E" {\s -> Elimination}
     "I" {\s -> Introduction}
     "¬" {\s -> Negation}
+    "or" {\s -> Or }
+    "⋁" {\s -> Or }
+    "⋎" {\s -> Or }
     "not" {\s -> Negation}
     "RAA" {\s -> Absurd}
+    "⊥" {\s -> Bad}
+    "bad" {\s -> Bad}
     $digit $digit* {\s -> Number (read s)}
     $alpha $alpha* {Variable}
 
@@ -49,6 +54,8 @@ data Token = Variable String
            | Introduction
            | Negation
            | Absurd
+           | Or
+           | Bad
     deriving (Show)
 }
 

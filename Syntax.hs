@@ -9,10 +9,17 @@ data ProofLine = Seq [Int] LineNumber Formulae RuleReference
 data RuleReference = AssmptionReference
           | ConjuncRefIntro Int Int
           | ConjuncRefElimi Int
-          | ImplicaRefIntro Int Int
+          | ImplicaRefIntro Int DischargeRef
           | ImplicaRefElimi Int Int
-          | RaaRef Int Int (Maybe Int)
+          | RaaRef Int Int (Maybe DischargeRef)
+          | NegationRefIntro Int (Maybe DischargeRef)
+          | NegationRefElimi
+          | DoubleNegationRefElimi Int
+          | OrRefElimi Int Int DischargeRef Int DischargeRef
+          | OrRefIntro Int
     deriving (Show, Eq, Ord)
+
+type DischargeRef = Int
 
 type ListOfSequents = [ProofLine]
 
@@ -28,6 +35,7 @@ type Assumptions = S.Set Formulae
 data Formulae = Sentence Formulae Connective Formulae
               | Atom String
               | Negated Formulae
+              | Contradiction
     deriving (Eq, Ord)
 
 instance Show Formulae where
@@ -37,11 +45,13 @@ instance Show Formulae where
 
 data Connective = Conjunction
                 | Implication
+                | Disjunction
     deriving (Eq, Ord)
 
 instance Show Connective where
     show Implication = "➞"
     show Conjunction = "∧"
+    show Disjunction = "⋁"
 
 data Rule = AssmptionRule
           | ConjuncRuleIntro Proof Proof
@@ -49,4 +59,9 @@ data Rule = AssmptionRule
           | ImplicaRuleIntro Proof Formulae
           | ImplicaRuleElimi Proof Proof
           | RaaRule Proof Proof (Maybe Formulae)
+          | NegationRuleIntro Proof (Maybe  Formulae)
+          | NegationRuleElimi
+          | DoubleNegationRuleElimi Proof
+          | OrRuleElimi Proof Proof Formulae Proof Formulae
+          | OrRuleIntro Proof
     deriving (Show, Eq, Ord)
