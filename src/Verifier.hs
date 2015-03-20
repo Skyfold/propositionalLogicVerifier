@@ -441,20 +441,49 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
           isInstanceOfRule = 
               case (sequentFormulae orSeq) of
                 Sentence l Disjunction r
-                    | l == leftDischarge && r == rightDischarge ->
-                          return True
+                    | (S.member leftDischarge (sequentAssump fromLeft) &&
+                        ((l == leftDischarge && r == rightDischarge) || 
+                        (r == leftDischarge && l == rightDischarge))
+                        && (S.member rightDischarge (sequentAssump fromRight))) ->
+                            return True
                     | otherwise -> do
-                        when (not (l == leftDischarge)) $
-                          reportError $ show lineNum++ " : Discharge "
+                        when (not (S.member leftDischarge (sequentAssump fromLeft))) $
+                            reportError $ show lineNum++ " : Discharge "
                             ++show leftDischarge++
-                            " should be "
-                            ++show l
-                        when (not (r == rightDischarge)) $
-                          reportError $ show lineNum++ " : Discharge "
+                            " is not in the assumptions from line "
+                            ++show (sequentLineNum fromLeft)
+
+                        when (not (S.member rightDischarge (sequentAssump fromRight))) $
+                            reportError $ show lineNum++ " : Discharge "
                             ++show rightDischarge++
-                            " should be "
-                            ++show r
+                            " is not in the assumptions from line "
+                            ++show (sequentLineNum fromRight)
+
+                        when (not (l == leftDischarge || r == leftDischarge)) $
+                            reportError $ show lineNum++ " : Discharge "
+                            ++show leftDischarge++
+                            " needs to be either "
+                            ++show l++
+                            " or "
+                            ++show r++
+                            " since you referenced line "
+                            ++show (sequentLineNum orSeq)++
+                            " with "
+                            ++show (sequentFormulae orSeq)
+
+                        when (not (l == rightDischarge || r == rightDischarge)) $
+                            reportError $ show lineNum++ " : Discharge "
+                            ++show rightDischarge++
+                            " needs to be either "
+                            ++show l++
+                            " or "
+                            ++show r++
+                            " since you referenced line "
+                            ++show (sequentLineNum orSeq)++
+                            " with "
+                            ++show (sequentFormulae orSeq)
                         return False 
+
                 _ -> do
                     reportError $ show lineNum++ " : The formulae "
                         ++show (sequentFormulae orSeq)++
