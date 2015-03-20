@@ -1,0 +1,4 @@
+1    (1) p and not p        A
+1    (2) p                  1 and E
+1    (3) not p              1 and E
+     (4) not (p and not p)  2,3 [1] RAA 
