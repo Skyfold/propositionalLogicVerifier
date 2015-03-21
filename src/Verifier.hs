@@ -70,7 +70,7 @@ checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
                     reportError $ "Your sequent at line "
                         ++show lineNum++
                         " with assumptions "
-                        ++show assumptions++
+                        ++ppAssump assumptions++
                         " does not contain the set of assumptions "
                         ++show (S.delete discharge (sequentAssump proof))++
                         " spesified by the sequent's rule"
@@ -83,7 +83,7 @@ checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
                     reportError $ "Your sequent at line "
                         ++show lineNum++
                         " with assumptions "
-                        ++show assumptions++
+                        ++ppAssump assumptions++
                         " does not contain the set of assumptions "
                         ++show proof++
                         " spesified by the sequent's rule"
@@ -104,7 +104,7 @@ checkAssumptions assumptions listOfSequents lineNum =
                     reportError $ "Your sequent at line "
                         ++show lineNum++
                         " with assumptions "
-                        ++show assumptions++
+                        ++ppAssump assumptions++
                         " does not contain the set of assumptions "
                         ++show (sequentAssump x)++
                         " spesified by the sequent's rule"
@@ -120,7 +120,7 @@ assmptionRuleCheck assumptions formulae lineNum
                 " is not an instance of the Assumption Rule since "
                 ++show formulae++
                 " is not in the set of assumptons "
-                ++show assumptions
+                ++ppAssump assumptions
             return False
 
 conjuncRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Proof -> Writer [String] Bool

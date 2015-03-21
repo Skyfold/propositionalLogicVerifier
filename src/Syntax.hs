@@ -35,6 +35,9 @@ type LineNumber = Int
 
 type Assumptions = S.Set Formulae
 
+ppAssump :: S.Set Formulae -> String
+ppAssump set = (show (S.toList set))
+
 data Formulae = Sentence Formulae Connective Formulae
               | Atom String
               | Negated Formulae
