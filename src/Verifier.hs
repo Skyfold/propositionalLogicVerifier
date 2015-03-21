@@ -37,22 +37,20 @@ convertToTree list = makeProof (V.fromList list)
                     ConjuncRuleIntro (vec !!! num1) (vec !!! num2)
                 ConjuncRefElimi num1 -> 
                     ConjuncRuleElimi (vec !!! num1) 
-                ImplicaRefIntro num1 num2 -> 
-                    ImplicaRuleIntro (vec !!! num1) (sequentFormulae (vec !!! num2))
+                ImplicaRefIntro num1 (Just num2) -> 
+                    ImplicaRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! num2)))
+                ImplicaRefIntro num1 Nothing -> 
+                    ImplicaRuleIntro (vec !!! num1) Nothing 
                 ImplicaRefElimi num1 num2 -> 
                     ImplicaRuleElimi (vec !!! num1) (vec !!! num2)
-                RaaRef num1 num2 m-> 
-                    case m of
-                        Just x -> 
-                            RaaRule (vec !!! num1) (vec !!! num2) (Just (sequentFormulae (vec !!! x)))
-                        Nothing ->
-                            RaaRule (vec !!! num1) (vec !!! num2) Nothing 
-                NegationRefIntro num1 m ->
-                    case m of
-                        Just x -> 
-                            NegationRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! x)))
-                        Nothing ->
-                            NegationRuleIntro (vec !!! num1)  Nothing 
+                RaaRef num1 num2 (Just x) -> 
+                    RaaRule (vec !!! num1) (vec !!! num2) (Just (sequentFormulae (vec !!! x)))
+                RaaRef num1 num2 Nothing -> 
+                    RaaRule (vec !!! num1) (vec !!! num2) Nothing 
+                NegationRefIntro num1 (Just x) ->
+                    NegationRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! x)))
+                NegationRefIntro num1 Nothing ->
+                    NegationRuleIntro (vec !!! num1)  Nothing 
                 NegationRefElimi -> NegationRuleElimi
                 DoubleNegationRefElimi num1 -> 
                     DoubleNegationRuleElimi (vec !!! num1) 
@@ -60,22 +58,6 @@ convertToTree list = makeProof (V.fromList list)
                     OrRuleElimi (vec !!! num1) (vec !!! num2) (sequentFormulae (vec !!! m1)) (vec !!! num3) (sequentFormulae (vec !!! m2))
                 OrRefIntro num1 ->
                     OrRuleIntro (vec !!! num1) 
-
-
-
-                                      
-
-
-test2 = Sequent 5 (S.singleton (Atom "p")) (Sentence (Sentence (Atom "p") Implication (Atom "q")) Implication (Sentence (Atom "p") Conjunction (Atom "q"))) (
-                                ImplicaRuleIntro (
-                                    (Sequent 4 (S.fromList [Sentence (Atom "p") Implication (Atom "q"), Atom "p"]) (Sentence (Atom "p") Conjunction (Atom "q")) (ConjuncRuleIntro
-                                        (Sequent 1 (S.singleton (Atom "p")) (Atom "p") AssmptionRule)
-                                        (Sequent 3 (S.fromList [Atom "p", Sentence (Atom "p") Implication (Atom "q")]) (Atom "q") (ImplicaRuleElimi
-                                            (Sequent 1 (S.singleton (Atom "p")) (Atom "p") AssmptionRule)
-                                            (Sequent 2 (S.singleton (Sentence (Atom "p") Implication (Atom "q"))) (Sentence (Atom "p") Implication (Atom "q")) AssmptionRule )
-                                        ))
-                                    )))
-                                    (Sentence (Atom "p") Implication (Atom "q"))  )
 
 checkAssumptionsWithDischarge :: Assumptions -> [(Proof, Maybe Formulae)] -> LineNumber -> Writer [String] Bool
 checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
@@ -225,38 +207,50 @@ conjuncRuleElimiCheck assumptions formulae lineNum fromSequent = do
                         " where x can be anything."
                     return False
 
-implicaRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Formulae ->Writer [String] Bool
+implicaRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Maybe Formulae ->Writer [String] Bool
 implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump = do
-        x <- checkAssumptionsWithDischarge assumptions [(fromSequent, Just dischargedAssump)] lineNum
+        x <- checkAssumptionsWithDischarge assumptions [(fromSequent, dischargedAssump)] lineNum
         y <-isInstanceOfRule
         return (x && y)
 
     where isInstanceOfRule :: Writer [String] Bool
           isInstanceOfRule =
             case formulae of
-                Sentence l Implication r
-                    | l == dischargedAssump && r == (sequentFormulae fromSequent) -> return True
-                    | otherwise -> do 
-                        when (not (r == (sequentFormulae fromSequent))) $
-                            reportError $ show lineNum++ " : "
-                                ++show r++
-                                " found where "
-                                ++show (sequentFormulae fromSequent)++
-                                " was expected in "
-                                ++show formulae
-                        when (not (l == dischargedAssump)) $
-                            reportError $ show lineNum++ " : "
-                                ++show l++
-                                " found where "
-                                ++show dischargedAssump++
-                                " was expected in "
-                                ++show formulae
-                        return False
+                Sentence l Implication r -> case dischargedAssump of
+                    Just ds
+                        | l == ds && r == (sequentFormulae fromSequent) -> return True
+                        | otherwise -> do 
+                            when (not (r == (sequentFormulae fromSequent))) $
+                                reportError $ show lineNum++ " : "
+                                    ++show r++
+                                    " found where "
+                                    ++show (sequentFormulae fromSequent)++
+                                    " was expected in "
+                                    ++show formulae
+                            when (not (l == ds)) $
+                                reportError $ show lineNum++ " : "
+                                    ++show l++
+                                    " found where "
+                                    ++show dischargedAssump++
+                                    " was expected in "
+                                    ++show formulae
+                            return False
+                    Nothing
+                        | r == (sequentFormulae fromSequent) -> return True
+                        | otherwise -> do
+                            when (not (r == (sequentFormulae fromSequent))) $
+                                reportError $ show lineNum++ " : "
+                                    ++show r++
+                                    " found where "
+                                    ++show (sequentFormulae fromSequent)++
+                                    " was expected in "
+                                    ++show formulae
+                            return False
                 _ -> do
                     reportError $ "The Sequent at line "
                         ++show lineNum++
                         " is not an instance of the conjunction introduction rule "
-                        ++"it does not hav a conjunction between two formuale."
+                        ++"it does not have a conjunction between two formuale."
                     return False
 
 implicaRuleElimiCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Proof -> Writer [String] Bool

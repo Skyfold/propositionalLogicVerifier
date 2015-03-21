@@ -50,11 +50,16 @@ RuleReference : 'A' { AssmptionReference }
               | num ',' num 'and' 'I' { ConjuncRefIntro $1 $3 }
               | num 'and' 'E' { ConjuncRefElimi $1 }
               | num ',' num '->' 'E' { ImplicaRefElimi $1 $3 }
-              | num '[' num ']' '->' 'I' { ImplicaRefIntro $1 $3 }
+
+              | num '[' num ']' '->' 'I' { ImplicaRefIntro $1 (Just $3) }
+              | num '[' ']' '->' 'I' { ImplicaRefIntro $1 Nothing }
+
               | num ',' num '[' num ']' 'RAA' { RaaRef $1 $3 (Just $5) }
               | num ',' num '[' ']' 'RAA' { RaaRef $1 $3 (Nothing) }
+
               | num '[' num ']' 'not' 'I' { NegationRefIntro $1 (Just $3) }
               | num '[' ']' 'not' 'I' { NegationRefIntro $1 Nothing }
+
               | 'not' 'E' { NegationRefElimi }
               | num 'not' 'not' 'E' { DoubleNegationRefElimi $1 }
               | num ',' num '[' num ']' ',' num '[' num ']' 'or' 'E' { OrRefElimi $1 $3 $5 $8 $10 } 

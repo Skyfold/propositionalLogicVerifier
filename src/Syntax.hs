@@ -9,8 +9,8 @@ data ProofLine = Seq [Int] LineNumber Formulae RuleReference
 data RuleReference = AssmptionReference
           | ConjuncRefIntro Int Int
           | ConjuncRefElimi Int
-          | ImplicaRefIntro Int DischargeRef
-          | ImplicaRefElimi Int Int
+          | ImplicaRefIntro Int (Maybe DischargeRef)
+          | ImplicaRefElimi Int DischargeRef
           | RaaRef Int Int (Maybe DischargeRef)
           | NegationRefIntro Int (Maybe DischargeRef)
           | NegationRefElimi
@@ -26,7 +26,10 @@ type ListOfSequents = [ProofLine]
 -- For actual proof system
 
 data Proof = Sequent {sequentLineNum :: LineNumber, sequentAssump :: Assumptions, sequentFormulae :: Formulae, sequentRule :: Rule}
-    deriving (Show, Eq, Ord)
+    deriving (Eq, Ord)
+
+instance Show Proof where
+    show (Sequent ln as for rule) = show as++" ("++show ln++") "++show for++" "++show rule
 
 type LineNumber = Int
 
@@ -56,12 +59,28 @@ instance Show Connective where
 data Rule = AssmptionRule
           | ConjuncRuleIntro Proof Proof
           | ConjuncRuleElimi Proof
-          | ImplicaRuleIntro Proof Formulae
+          | ImplicaRuleIntro Proof (Maybe Formulae)
           | ImplicaRuleElimi Proof Proof
           | RaaRule Proof Proof (Maybe Formulae)
-          | NegationRuleIntro Proof (Maybe  Formulae)
+          | NegationRuleIntro Proof (Maybe Formulae)
           | NegationRuleElimi
           | DoubleNegationRuleElimi Proof
           | OrRuleElimi Proof Proof Formulae Proof Formulae
           | OrRuleIntro Proof
-    deriving (Show, Eq, Ord)
+    deriving (Eq, Ord)
+
+instance Show Rule where
+    show (AssmptionRule) = "A"
+    show (ConjuncRuleIntro a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ∧I" 
+    show (ConjuncRuleElimi a) = show (sequentLineNum a)++", ∧E"
+    show (ImplicaRuleIntro a (Just f)) = show (sequentLineNum a)++"["++show f++"] ➞ I"
+    show (ImplicaRuleIntro a Nothing) = show (sequentLineNum a)++"[] ➞ I"
+    show (ImplicaRuleElimi a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ➞ E" 
+    show (RaaRule a b (Just c)) = show (sequentLineNum a)++","++show (sequentLineNum b)++"["++show c++"] RAA"
+    show (RaaRule a b Nothing) = show (sequentLineNum a)++","++show (sequentLineNum b)++"[] RAA"
+    show (NegationRuleIntro a (Just b)) = show (sequentLineNum a)++"["++show b++"] ¬I" 
+    show (NegationRuleElimi) = "¬E"
+    show (DoubleNegationRuleElimi a) = show a++" ¬¬E"
+    show (OrRuleElimi a b bf c cf) = show a++","++show b++"["++show bf++"],"++show c++"["++show cf++"] ⋁E"
+    show (OrRuleIntro a) = show a++" ⋁I"
+
