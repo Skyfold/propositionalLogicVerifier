@@ -7,18 +7,6 @@ import qualified Data.Vector as V
 import Control.Monad.Writer.Lazy
 import qualified Data.List as L
 
-main :: IO ()
-main = do
-        filename:_ <- getArgs
-        program <- readFile filename
---        mapM_ print (alexScanTokens program)
-        let proof = convertToTree $ prepParser $ alexScanTokens program
-        case runWriter (proofSequent proof) of
-          (b, xs) -> do
-              mapM_ putStrLn $ reverse xs
-              print b
-
-
 {-        mapM_ print res  
         print (convertToTree res)
         print ((convertToTree res) == test2)
@@ -433,10 +421,12 @@ doubleNegationRuleElimiCheck assumptions formulae lineNum fromA = do
 
 orRuleElimiCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Proof -> Formulae -> Proof -> Formulae -> Writer [String] Bool
 orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromRight rightDischarge = do
-        x <- checkAssumptionsWithDischarge assumptions [(orSeq, Nothing), (fromLeft, Just leftDischarge), (fromRight, Just rightDischarge)] lineNum
+        x <- checkAssumptionsWithDischarge assumptions [(fromLeft, Just leftDischarge), (fromRight, Just rightDischarge)] lineNum
+        p <- checkFirstOrSequetAssumptions
         y <- isInstanceOfRule
         z <- checkFormulae
-        return (x && y && z)
+        return (x && y && z && p)
+
     where isInstanceOfRule :: Writer [String] Bool
           isInstanceOfRule = 
               case (sequentFormulae orSeq) of
@@ -495,7 +485,7 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
           checkFormulae :: Writer [String] Bool
           checkFormulae
             | formulae == (sequentFormulae fromLeft) && formulae == (sequentFormulae fromRight) =
-              return False
+              return True
             | otherwise = do
                 when (not (formulae == (sequentFormulae fromLeft))) $
                     reportError $ show lineNum++ " : The formulae "
@@ -512,6 +502,19 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
                         " should be "
                         ++show formulae
                 return False 
+
+          checkFirstOrSequetAssumptions :: Writer [String] Bool
+          checkFirstOrSequetAssumptions
+            | S.isSubsetOf (S.delete leftDischarge (S.delete rightDischarge (sequentAssump orSeq))) assumptions =
+              return True
+            | otherwise = do
+                reportError $ show lineNum++ " : You forgot to copy over assumption[s] " 
+                    ++show (S.difference (sequentAssump orSeq) 
+                        (S.intersection (sequentAssump orSeq) assumptions))++
+                    " from line "
+                    ++show (sequentLineNum orSeq)++
+                    "." 
+                return False
 
 orRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Writer [String] Bool
 orRuleIntroCheck assumptions formulae lineNum fromA = do
@@ -586,5 +589,13 @@ proofSequent (Sequent seqLineNum assumptions formulae rule) =
             x <- proofSequent fromA
             return (y && x)
 
-
-
+main :: IO ()
+main = do
+        filename:_ <- getArgs
+        program <- readFile filename
+--        mapM_ print (alexScanTokens program)
+        let proof = convertToTree $ prepParser $ alexScanTokens program
+        case runWriter (proofSequent proof) of
+          (b, xs) -> do
+              mapM_ putStrLn $ reverse xs
+              print b
