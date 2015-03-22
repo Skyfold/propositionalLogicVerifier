@@ -3,7 +3,7 @@ import qualified Data.Set as S
 
 -- For parser
 
-data ProofLine = Seq [Int] LineNumber Formulae RuleReference
+data ProofLine = Seq {assump :: [Int], getln :: LineNumber, getFormulae :: Formulae, getRule :: RuleReference}
     deriving (Show, Eq, Ord)
 
 data RuleReference = AssmptionReference

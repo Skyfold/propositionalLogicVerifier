@@ -6,6 +6,7 @@ import Token (alexScanTokens)
 import qualified Data.Vector as V
 import Control.Monad.Writer.Lazy
 import qualified Data.List as L
+import Data.Ord
 
 {-        mapM_ print res  
         print (convertToTree res)
@@ -13,12 +14,17 @@ import qualified Data.List as L
         -} 
 
 convertToTree :: ListOfSequents -> Proof
-convertToTree list = makeProof (V.fromList list)
+convertToTree list = makeProof (V.fromList $ fillList 1 $ L.sortBy (comparing getln) list)
 
     where makeProof :: V.Vector ProofLine -> Proof
           makeProof vec = V.last $ loeb $ fmap toProof vec
 
-          loeb :: (Functor f) => (f (f a -> a)) -> f a
+          fillList _ [] = []
+          fillList n (x:xs)
+            | n < getln x = (error $ "line "++show n++" does not exist"):fillList (n+1) (x:xs)
+            | otherwise = x: fillList (n+1) xs
+
+          loeb :: (V.Vector (V.Vector a -> a)) -> V.Vector a
           loeb xs = go where go = fmap ($ go) xs
 
           toProof :: ProofLine -> V.Vector Proof -> Proof
@@ -226,7 +232,7 @@ implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump 
                                 reportError $ show lineNum++ " : "
                                     ++show l++
                                     " found where "
-                                    ++show dischargedAssump++
+                                    ++show ds++
                                     " was expected in "
                                     ++show formulae
                             return False
