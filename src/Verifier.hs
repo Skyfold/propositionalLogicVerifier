@@ -67,29 +67,25 @@ checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
                 | S.isSubsetOf (S.delete discharge (sequentAssump proof)) assumptions ->
                     checkAssumptionsWithDischarge assumptions xs lineNum
                 | otherwise -> do
-                    reportError $ "Your sequent at line "
-                        ++show lineNum++
-                        " with assumptions "
-                        ++ppAssump assumptions++
-                        " does not contain the set of assumptions "
-                        ++show (S.delete discharge (sequentAssump proof))++
-                        " spesified by the sequent's rule"
-                    checkAssumptionsWithDischarge assumptions xs lineNum
+                    reportError $ show lineNum++ " : Your rule references line ("
+                        ++show (sequentLineNum proof)++
+                        ") with the assumptions "
+                        ++ppAssump (S.delete discharge (sequentAssump proof))++
+                        ", but they are not a subset of "
+                        ++ppAssump assumptions
                     return False
             ((proof, Nothing):xs)
                 | S.isSubsetOf (sequentAssump proof) assumptions ->
                     checkAssumptionsWithDischarge assumptions xs lineNum
                 | otherwise -> do
-                    reportError $ "Your sequent at line "
-                        ++show lineNum++
-                        " with assumptions "
-                        ++ppAssump assumptions++
-                        " does not contain the set of assumptions "
-                        ++show proof++
-                        " spesified by the sequent's rule"
+                    reportError $ show lineNum++ " : Your rule references line ("
+                        ++show (sequentLineNum proof)++
+                        ") with the assumptions "
+                        ++ppAssump (sequentAssump proof)++
+                        ", but they are not a subset of "
+                        ++ppAssump assumptions
                     checkAssumptionsWithDischarge assumptions xs lineNum
                     return False
-
 
 reportError str = tell [str]
 
@@ -101,13 +97,12 @@ checkAssumptions assumptions listOfSequents lineNum =
                 | S.isSubsetOf (sequentAssump x) assumptions ->
                     checkAssumptions assumptions xs lineNum
                 | otherwise -> do
-                    reportError $ "Your sequent at line "
-                        ++show lineNum++
-                        " with assumptions "
-                        ++ppAssump assumptions++
-                        " does not contain the set of assumptions "
-                        ++show (sequentAssump x)++
-                        " spesified by the sequent's rule"
+                    reportError $ show lineNum++ " : Your rule references line ("
+                        ++show (sequentLineNum x)++
+                        ") with the assumptions "
+                        ++ppAssump (sequentAssump x)++
+                        ", but they are not a subset of "
+                        ++ppAssump assumptions
                     checkAssumptions assumptions xs lineNum
                     return False
 

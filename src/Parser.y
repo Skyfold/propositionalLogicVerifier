@@ -26,6 +26,10 @@ import Token
     or { Or }
     bad { Bad }
 
+%left and
+%left or
+%right '->'
+%left not
 %%
 
 ListOfSequents : ProofLine { [$1] }
@@ -34,16 +38,15 @@ ListOfSequents : ProofLine { [$1] }
 ProofLine : Assumptions '(' num ')' Formulae RuleReference { Seq $1 $3 $5 $6 }
           | '(' num ')' Formulae RuleReference { Seq [] $2 $4 $5 }
 
-Assumptions : {-empty-} { [] }
+Assumptions : num { [$1] }
             | num ',' Assumptions { $1:$3 }
 
 Formulae : Formulae '->' Formulae { Sentence $1 Implication $3 }
          | Formulae and Formulae { Sentence $1 Conjunction $3 }
          | Formulae or Formulae { Sentence $1 Disjunction $3 }
          | '(' Formulae ')' { $2 }
-         | not '(' Formulae ')' { Negated $3 }
+         | not Formulae { Negated $2 }
          | var { Atom $1 }
-         | not var { Negated (Atom $2) }
          | bad { Contradiction }
 
 RuleReference : A { AssmptionReference }

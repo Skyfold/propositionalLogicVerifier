@@ -25,11 +25,22 @@ type ListOfSequents = [ProofLine]
 
 -- For actual proof system
 
+normalize :: Formulae -> Formulae
+normalize form = 
+    case form of
+        Sentence l Conjunction r
+            | l <= r -> form
+            | otherwise ->  Sentence r Conjunction l
+        Sentence l Disjunction r
+            | l <= r -> form
+            | otherwise ->  Sentence r Disjunction l
+        _ -> form
+
 data Proof = Sequent {sequentLineNum :: LineNumber, sequentAssump :: Assumptions, sequentFormulae :: Formulae, sequentRule :: Rule}
     deriving (Eq, Ord)
 
 instance Show Proof where
-    show (Sequent ln as for rule) = show as++" ("++show ln++") "++show for++" "++show rule
+    show (Sequent ln as for rule) = ppAssump as++" ("++show ln++") "++show for++" "++show rule
 
 type LineNumber = Int
 
@@ -42,13 +53,65 @@ data Formulae = Sentence Formulae Connective Formulae
               | Atom String
               | Negated Formulae
               | Contradiction
-    deriving (Eq, Ord)
 
 instance Show Formulae where
     show (Atom s) = s
     show (Sentence f1 con f2) = "("++show f1++" "++show con++" "++show f2++")"
     show (Negated f) = "¬"++show f
 
+instance Eq Formulae where
+    x == y = 
+        case normalize x of
+          Sentence l1 Conjunction r1 ->
+            case normalize y of
+              Sentence l2 Conjunction r2 ->
+                normalize l1 == normalize l2 && normalize r1 == normalize r2
+              _ -> False
+          Sentence l1 Disjunction r1 ->
+            case normalize y of
+              Sentence l2 Disjunction r2 ->
+                normalize l1 == normalize l2 && normalize r1 == normalize r2
+              _ -> False
+          Sentence l1 Implication r1 ->
+            case normalize y of
+              Sentence l2 Implication r2 ->
+                normalize l1 == normalize l2 && normalize r1 == normalize r2
+              _ -> False
+          Negated f1 ->
+            case normalize y of
+              Negated f2->
+                normalize f1 == normalize f2
+              _ -> False
+          Atom f1 ->
+            case y of
+              Atom f2->
+                 f1 == f2
+              _ -> False
+          Contradiction ->
+            case y of
+              Contradiction -> True
+              _ -> False
+
+instance Ord Formulae where
+    x `compare` y = 
+        case (normalize x, normalize y) of
+          ((Sentence l1 c1 r1), (Sentence l2 c2 r2))
+            | c1 /= c2 -> compare c1 c2
+            | otherwise -> 
+              case compare (normalize l1) (normalize l2) of
+                EQ -> compare (normalize r1) (normalize r2)
+                ret -> ret
+          ((Sentence _ _ _), _) -> GT
+          ((Atom a), (Sentence _ _ _)) -> LT
+          ((Atom a), (Atom b)) -> compare a b
+          ((Atom _), _) -> GT
+          (Negated _, Sentence _ _ _) -> LT
+          (Negated _, Atom _) -> LT
+          (Negated x, Negated y) -> compare (normalize x) (normalize y)
+          (Negated _, Contradiction) -> GT
+          (Contradiction, Contradiction) -> EQ
+          (Contradiction, _) -> LT
+              
 data Connective = Conjunction
                 | Implication
                 | Disjunction
