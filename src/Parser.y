@@ -5,26 +5,26 @@ import Token
 }
 
 %name prepParser
-%tokentype { Token }
-%error { error . show }
+%tokentype { (AlexPosn, String, Token) }
+%error { \(((AlexPn _ line column),s , _):_) -> error $ show line++":"++show column++" got unexpected "++ s }
 
 %token
-    var { Variable $$ }
-    num { Number $$ }
-    '(' { LeftParen }
-    ')' { RightParen }
-    '->' { Implies }
-    and { And }
-    '[' { LeftBrace }
-    ']' { RightBrace }
-    ',' { Comma }
-    A { Assump }
-    E { Elimination }
-    I { Introduction }
-    not { Negation }
-    RAA { Absurd }
-    or { Or }
-    bad { Bad }
+    var { (_, _, (Variable $$)) }
+    num { (_, _, (Number $$)) }
+    '(' { (_, _, (LeftParen)) }
+    ')' { (_, _, (RightParen)) }
+    '->' { (_, _, (Implies)) }
+    and { (_, _, (And)) }
+    '[' { (_, _, (LeftBrace)) }
+    ']' { (_, _, (RightBrace)) }
+    ',' { (_, _, (Comma)) }
+    A { (_, _, (Assump)) }
+    E { (_, _, (Elimination)) }
+    I { (_, _, (Introduction)) }
+    not { (_, _, (Negation)) }
+    RAA { (_, _, (Absurd)) }
+    or { (_, _, (Or)) }
+    bad { (_, _, (Bad)) }
 
 %left and
 %left or
