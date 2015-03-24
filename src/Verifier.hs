@@ -1,7 +1,7 @@
 import qualified Data.Set as S
-import System.Environment
+import System.Environment (getArgs)
 import Syntax
-import Parser
+import Parser (prepParser)
 import Token (alexScanTokens)
 import qualified Data.Vector as V
 import Control.Monad.Writer.Lazy

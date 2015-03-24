@@ -13,21 +13,26 @@ import Data.Ord(comparing)
 
 -- For parser
 
-data ProofLine = Seq {assump :: [Int], getln :: LineNumber, getFormulae :: Formulae, getRule :: RuleReference}
-    deriving (Show, Eq, Ord)
+data ProofLine = Seq {
+    assump :: [Int],
+    getln :: LineNumber,
+    getFormulae :: Formulae,
+    getRule :: RuleReference
+    }
+  deriving (Show, Eq, Ord)
 
 data RuleReference = AssmptionReference
-          | ConjuncRefIntro Int Int
-          | ConjuncRefElimi Int
-          | ImplicaRefIntro Int (Maybe DischargeRef)
-          | ImplicaRefElimi Int DischargeRef
-          | RaaRef Int Int (Maybe DischargeRef)
-          | NegationRefIntro Int (Maybe DischargeRef)
-          | NegationRefElimi
-          | DoubleNegationRefElimi Int
-          | OrRefElimi Int Int DischargeRef Int DischargeRef
-          | OrRefIntro Int
-    deriving (Show, Eq, Ord)
+                   | ConjuncRefIntro Int Int
+                   | ConjuncRefElimi Int
+                   | ImplicaRefIntro Int (Maybe DischargeRef)
+                   | ImplicaRefElimi Int DischargeRef
+                   | RaaRef Int Int (Maybe DischargeRef)
+                   | NegationRefIntro Int (Maybe DischargeRef)
+                   | NegationRefElimi
+                   | DoubleNegationRefElimi Int
+                   | OrRefElimi Int Int DischargeRef Int DischargeRef
+                   | OrRefIntro Int
+                deriving (Show, Eq, Ord)
 
 type DischargeRef = Int
 
@@ -50,7 +55,8 @@ convertToTree list = makeProof (V.fromList $ fillList 1 $ L.sortBy (comparing ge
           loeb xs = go where go = fmap ($ go) xs
 
           toProof :: ProofLine -> V.Vector Proof -> Proof
-          toProof (Seq assum num form ref) vec = Sequent num (getAssumptions vec assum) form (getRules vec ref)
+          toProof (Seq assum num form ref) vec = 
+              Sequent num (getAssumptions vec assum) form (getRules vec ref)
 
           getAssumptions :: V.Vector Proof -> [Int] -> Assumptions
           getAssumptions vec list = S.fromList (map (sequentFormulae . (vec !!!)) list)
@@ -83,6 +89,8 @@ convertToTree list = makeProof (V.fromList $ fillList 1 $ L.sortBy (comparing ge
                 DoubleNegationRefElimi num1 -> 
                     DoubleNegationRuleElimi (vec !!! num1) 
                 OrRefElimi num1 num2 m1 num3 m2 ->
-                    OrRuleElimi (vec !!! num1) (vec !!! num2) (sequentFormulae (vec !!! m1)) (vec !!! num3) (sequentFormulae (vec !!! m2))
+                    OrRuleElimi (vec !!! num1) (vec !!! num2) 
+                        (sequentFormulae (vec !!! m1)) (vec !!! num3) 
+                        (sequentFormulae (vec !!! m2))
                 OrRefIntro num1 ->
                     OrRuleIntro (vec !!! num1) 
