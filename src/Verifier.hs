@@ -530,8 +530,9 @@ proofSequent (Sequent seqLineNum assumptions formulae rule) =
 
 main :: IO ()
 main = do
-        filename:_ <- getArgs
-        program <- readFile filename
+        args <- getArgs
+        when (null args) $ fail "no arguments, sorry"
+        program <- readFile $ head args
 --        mapM_ print (alexScanTokens program)
         let proof = convertToTree $ prepParser $ alexScanTokens program
         case runWriter (proofSequent proof) of
