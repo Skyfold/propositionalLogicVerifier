@@ -6,7 +6,8 @@ module Token where
 %wrapper "posn"
 
 $digit = 0-9
-$alpha = [a-z]
+$alphaL = [a-z]
+$alphaC = [A-Z]
 
 tokens :-
 
@@ -41,10 +42,12 @@ tokens :-
     "⊥" {\p s -> (p, s, Bad)}
     "bad" {\p s -> (p, s, Bad)}
     $digit $digit* {\p s -> (p, s, Number (read s))}
-    $alpha $alpha* {\ p s -> (p, s, Variable s)}
+    $alphaL $alphaL* {\ p s -> (p, s, Variable s)}
+    $alphaC $alphaL* {\ p s -> (p, s, Func s)}
 
 {
 data Token = Variable String
+           | Func String
            | Number Int
            | LeftParen
            | RightParen

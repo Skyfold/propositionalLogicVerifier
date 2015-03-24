@@ -1,7 +1,8 @@
 {
 module Parser where
-import Syntax
 import Token
+import ParserSyntax
+import Syntax (Connective (..), Formulae (..))
 }
 
 %name prepParser
@@ -9,6 +10,7 @@ import Token
 %error { \(((AlexPn _ line column),s , _):_) -> error $ show line++":"++show column++" got unexpected "++ s }
 
 %token
+    func { (_, _, (Func $$)) }
     var { (_, _, (Variable $$)) }
     num { (_, _, (Number $$)) }
     '(' { (_, _, (LeftParen)) }
@@ -47,6 +49,7 @@ Formulae : Formulae '->' Formulae { Sentence $1 Implication $3 }
          | '(' Formulae ')' { $2 }
          | not Formulae { Negated $2 }
          | var { Atom $1 }
+         | func { Function $1 }
          | bad { Contradiction }
 
 RuleReference : A { AssmptionReference }

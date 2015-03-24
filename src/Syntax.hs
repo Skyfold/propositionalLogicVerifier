@@ -1,29 +1,89 @@
-module Syntax where
+module Syntax (
+    Proof (..),
+    LineNumber (..),
+    Assumptions (..),
+    Formulae (..),
+    Rule (..),
+    Connective (..),
+    ppAssump,
+    )
+  where
 import qualified Data.Set as S
 
--- For parser
+-- Data type the verifier works over For actual proof system
+-- ====================================================================================
 
-data ProofLine = Seq {assump :: [Int], getln :: LineNumber, getFormulae :: Formulae, getRule :: RuleReference}
-    deriving (Show, Eq, Ord)
+data Proof = Sequent {sequentLineNum :: LineNumber,
+                     sequentAssump :: Assumptions,
+                     sequentFormulae :: Formulae,
+                     sequentRule :: Rule}
+    deriving (Eq, Ord)
 
-data RuleReference = AssmptionReference
-          | ConjuncRefIntro Int Int
-          | ConjuncRefElimi Int
-          | ImplicaRefIntro Int (Maybe DischargeRef)
-          | ImplicaRefElimi Int DischargeRef
-          | RaaRef Int Int (Maybe DischargeRef)
-          | NegationRefIntro Int (Maybe DischargeRef)
-          | NegationRefElimi
-          | DoubleNegationRefElimi Int
-          | OrRefElimi Int Int DischargeRef Int DischargeRef
-          | OrRefIntro Int
-    deriving (Show, Eq, Ord)
+type LineNumber = Int
 
-type DischargeRef = Int
+type Assumptions = S.Set Formulae
 
-type ListOfSequents = [ProofLine]
+data Formulae = Sentence Formulae Connective Formulae
+              | Atom String
+              | Function String
+              | Negated Formulae
+              | Contradiction
 
--- For actual proof system
+data Rule = AssmptionRule
+          | ConjuncRuleIntro Proof Proof
+          | ConjuncRuleElimi Proof
+          | ImplicaRuleIntro Proof (Maybe Formulae)
+          | ImplicaRuleElimi Proof Proof
+          | RaaRule Proof Proof (Maybe Formulae)
+          | NegationRuleIntro Proof (Maybe Formulae)
+          | NegationRuleElimi
+          | DoubleNegationRuleElimi Proof
+          | OrRuleElimi Proof Proof Formulae Proof Formulae
+          | OrRuleIntro Proof
+    deriving (Eq, Ord)
+
+data Connective = Conjunction
+                | Implication
+                | Disjunction
+    deriving (Eq, Ord)
+
+-- Make things print nicely
+-- ====================================================================================
+
+instance Show Proof where
+    show (Sequent ln as for rule) = ppAssump as++" ("++show ln++") "++show for++" "++show rule
+
+ppAssump :: S.Set Formulae -> String
+ppAssump set = (show (S.toList set))
+
+instance Show Formulae where
+    show (Atom s) = s
+    show (Sentence f1 con f2) = "("++show f1++" "++show con++" "++show f2++")"
+    show (Negated f) = "¬"++show f
+
+instance Show Connective where
+    show Implication = "➞"
+    show Conjunction = "∧"
+    show Disjunction = "⋁"
+
+
+instance Show Rule where
+    show (AssmptionRule) = "A"
+    show (ConjuncRuleIntro a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ∧I" 
+    show (ConjuncRuleElimi a) = show (sequentLineNum a)++", ∧E"
+    show (ImplicaRuleIntro a (Just f)) = show (sequentLineNum a)++"["++show f++"] ➞ I"
+    show (ImplicaRuleIntro a Nothing) = show (sequentLineNum a)++"[] ➞ I"
+    show (ImplicaRuleElimi a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ➞ E" 
+    show (RaaRule a b (Just c)) = show (sequentLineNum a)++","++show (sequentLineNum b)++"["++show c++"] RAA"
+    show (RaaRule a b Nothing) = show (sequentLineNum a)++","++show (sequentLineNum b)++"[] RAA"
+    show (NegationRuleIntro a (Just b)) = show (sequentLineNum a)++"["++show b++"] ¬I" 
+    show (NegationRuleElimi) = "¬E"
+    show (DoubleNegationRuleElimi a) = show a++" ¬¬E"
+    show (OrRuleElimi a b bf c cf) = show a++","++show b++"["++show bf++"],"++show c++"["++show cf++"] ⋁E"
+    show (OrRuleIntro a) = show a++" ⋁I"
+
+-- define Ord and Equality
+-- ====================================================================================
 
 normalize :: Formulae -> Formulae
 normalize form = 
@@ -35,29 +95,6 @@ normalize form =
             | l <= r -> form
             | otherwise ->  Sentence r Disjunction l
         _ -> form
-
-data Proof = Sequent {sequentLineNum :: LineNumber, sequentAssump :: Assumptions, sequentFormulae :: Formulae, sequentRule :: Rule}
-    deriving (Eq, Ord)
-
-instance Show Proof where
-    show (Sequent ln as for rule) = ppAssump as++" ("++show ln++") "++show for++" "++show rule
-
-type LineNumber = Int
-
-type Assumptions = S.Set Formulae
-
-ppAssump :: S.Set Formulae -> String
-ppAssump set = (show (S.toList set))
-
-data Formulae = Sentence Formulae Connective Formulae
-              | Atom String
-              | Negated Formulae
-              | Contradiction
-
-instance Show Formulae where
-    show (Atom s) = s
-    show (Sentence f1 con f2) = "("++show f1++" "++show con++" "++show f2++")"
-    show (Negated f) = "¬"++show f
 
 instance Eq Formulae where
     x == y = 
@@ -112,41 +149,4 @@ instance Ord Formulae where
           (Contradiction, Contradiction) -> EQ
           (Contradiction, _) -> LT
               
-data Connective = Conjunction
-                | Implication
-                | Disjunction
-    deriving (Eq, Ord)
-
-instance Show Connective where
-    show Implication = "➞"
-    show Conjunction = "∧"
-    show Disjunction = "⋁"
-
-data Rule = AssmptionRule
-          | ConjuncRuleIntro Proof Proof
-          | ConjuncRuleElimi Proof
-          | ImplicaRuleIntro Proof (Maybe Formulae)
-          | ImplicaRuleElimi Proof Proof
-          | RaaRule Proof Proof (Maybe Formulae)
-          | NegationRuleIntro Proof (Maybe Formulae)
-          | NegationRuleElimi
-          | DoubleNegationRuleElimi Proof
-          | OrRuleElimi Proof Proof Formulae Proof Formulae
-          | OrRuleIntro Proof
-    deriving (Eq, Ord)
-
-instance Show Rule where
-    show (AssmptionRule) = "A"
-    show (ConjuncRuleIntro a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ∧I" 
-    show (ConjuncRuleElimi a) = show (sequentLineNum a)++", ∧E"
-    show (ImplicaRuleIntro a (Just f)) = show (sequentLineNum a)++"["++show f++"] ➞ I"
-    show (ImplicaRuleIntro a Nothing) = show (sequentLineNum a)++"[] ➞ I"
-    show (ImplicaRuleElimi a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ➞ E" 
-    show (RaaRule a b (Just c)) = show (sequentLineNum a)++","++show (sequentLineNum b)++"["++show c++"] RAA"
-    show (RaaRule a b Nothing) = show (sequentLineNum a)++","++show (sequentLineNum b)++"[] RAA"
-    show (NegationRuleIntro a (Just b)) = show (sequentLineNum a)++"["++show b++"] ¬I" 
-    show (NegationRuleElimi) = "¬E"
-    show (DoubleNegationRuleElimi a) = show a++" ¬¬E"
-    show (OrRuleElimi a b bf c cf) = show a++","++show b++"["++show bf++"],"++show c++"["++show cf++"] ⋁E"
-    show (OrRuleIntro a) = show a++" ⋁I"
 
