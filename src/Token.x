@@ -14,10 +14,12 @@ tokens :-
     "(" {\p s -> (p, s, LeftParen)}
     ")" {\p s -> (p, s, RightParen)}
     "->" {\p s -> (p, s, Implies)}
+    "IMP" {\p s -> (p, s, Implies)}
     "imp" {\p s -> (p, s, Implies)}
     "→" {\p s -> (p, s, Implies)}
     "➝" {\p s -> (p, s, Implies)}
     "➞" {\p s -> (p, s, Implies)}
+    "AND" {\p s -> (p, s, And)}
     "and" {\p s -> (p, s, And)}
     "⋀" {\p s -> (p, s, And)}
     "⋏" {\p s -> (p, s, And)}
@@ -29,9 +31,11 @@ tokens :-
     "E" {\p s -> (p, s, Elimination)}
     "I" {\p s -> (p, s, Introduction)}
     "¬" {\p s -> (p, s, Negation)}
+    "OR" {\p s -> (p, s, Or )}
     "or" {\p s -> (p, s, Or )}
     "⋁" {\p s -> (p, s, Or )}
     "⋎" {\p s -> (p, s, Or )}
+    "NOT" {\p s -> (p, s, Negation)}
     "not" {\p s -> (p, s, Negation)}
     "RAA" {\p s -> (p, s, Absurd)}
     "⊥" {\p s -> (p, s, Bad)}
