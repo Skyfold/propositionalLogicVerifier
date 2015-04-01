@@ -5,6 +5,8 @@ module Syntax (
     Formulae (..),
     Rule (..),
     Connective (..),
+    Quantifier (..),
+    Domain (..),
     ppAssump,
     )
   where
@@ -29,6 +31,7 @@ data Formulae = Sentence Formulae Connective Formulae
               | Negated Formulae
               | Contradiction
               | Atom String
+              | Predecessor Char String
 
 data Connective = Conjunction
                 | Implication
@@ -40,7 +43,7 @@ data Quantifier = Forall Domain
     deriving (Eq, Ord)
 
 data Domain = Restricted (S.Set String) Formulae
-            | Variable String
+            | Variable (S.Set String)
     deriving (Eq, Ord)
 
 data Rule = AssmptionRule
@@ -54,6 +57,10 @@ data Rule = AssmptionRule
           | DoubleNegationRuleElimi Proof
           | OrRuleElimi Proof Proof Formulae Proof Formulae
           | OrRuleIntro Proof
+          | ForallRuleIntro Proof
+          | ForallRuleElimi Proof
+          | ExistsRuleIntro Proof
+          | ExistsRuleElimi Proof
     deriving (Eq, Ord)
 
 
@@ -70,7 +77,7 @@ ppSString :: S.Set String -> String
 ppSString set = printList (S.toList set)
     where printList list =
             case list of
-                [] -> 
+                [] ->
                     error "You tried to print a restricted quantifier that quantified over nothing."
                 [x] -> show x
                 x:xs -> show x++","++printList xs
@@ -96,18 +103,18 @@ instance Show Domain where
 
 instance Show Rule where
     show (AssmptionRule) = "A"
-    show (ConjuncRuleIntro a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ∧I" 
+    show (ConjuncRuleIntro a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ∧I"
     show (ConjuncRuleElimi a) = show (sequentLineNum a)++", ∧E"
     show (ImplicaRuleIntro a (Just f)) = show (sequentLineNum a)++"["++show f++"] ➞ I"
     show (ImplicaRuleIntro a Nothing) = show (sequentLineNum a)++"[] ➞ I"
-    show (ImplicaRuleElimi a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ➞ E" 
-    show (RaaRule a b (Just c)) = 
+    show (ImplicaRuleElimi a b) = show (sequentLineNum a)++","++show (sequentLineNum b)++" ➞ E"
+    show (RaaRule a b (Just c)) =
         show (sequentLineNum a)++","++show (sequentLineNum b)++"["++show c++"] RAA"
     show (RaaRule a b Nothing) = show (sequentLineNum a)++","++show (sequentLineNum b)++"[] RAA"
-    show (NegationRuleIntro a (Just b)) = show (sequentLineNum a)++"["++show b++"] ¬I" 
+    show (NegationRuleIntro a (Just b)) = show (sequentLineNum a)++"["++show b++"] ¬I"
     show (NegationRuleElimi) = "¬E"
     show (DoubleNegationRuleElimi a) = show a++" ¬¬E"
-    show (OrRuleElimi a b bf c cf) = 
+    show (OrRuleElimi a b bf c cf) =
         show a++","++show b++"["++show bf++"],"++show c++"["++show cf++"] ⋁E"
     show (OrRuleIntro a) = show a++" ⋁I"
 
@@ -115,7 +122,7 @@ instance Show Rule where
 -- ====================================================================================
 
 normalize :: Formulae -> Formulae
-normalize form = 
+normalize form =
     case form of
         Sentence l Conjunction r
             | l <= r -> form
@@ -126,7 +133,7 @@ normalize form =
         _ -> form
 
 instance Eq Formulae where
-    x == y = 
+    x == y =
         case normalize x of
           Sentence l1 Conjunction r1 ->
             case normalize y of
@@ -159,11 +166,11 @@ instance Eq Formulae where
               _ -> False
 
 instance Ord Formulae where
-    x `compare` y = 
+    x `compare` y =
         case (normalize x, normalize y) of
           ((Sentence l1 c1 r1), (Sentence l2 c2 r2))
             | c1 /= c2 -> compare c1 c2
-            | otherwise -> 
+            | otherwise ->
               case compare (normalize l1) (normalize l2) of
                 EQ -> compare (normalize r1) (normalize r2)
                 ret -> ret
@@ -177,5 +184,5 @@ instance Ord Formulae where
           (Negated _, Contradiction) -> GT
           (Contradiction, Contradiction) -> EQ
           (Contradiction, _) -> LT
-              
+
 

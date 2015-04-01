@@ -6,7 +6,7 @@ module Token where
 %wrapper "posn"
 
 $digit = 0-9
-$lowerCase = [a-z]
+$name = [a-z]
 $upperCase = [A-Z]
 
 tokens :-
@@ -44,29 +44,33 @@ tokens :-
     "⊥" {\p s -> (p, s, Bad)}
     "bad" {\p s -> (p, s, Bad)}
 
-    "∀" {\p s -> (p, s, Forall)}
-    "ALL" {\p s -> (p, s, Forall)}
-    "FORAll" {\p s -> (p, s, Forall)} 
-    "all" {\p s -> (p, s, Forall)}
-    "forall" {\p s -> (p, s, Forall)}
+    "∀" {\p s -> (p, s, ForallToken)}
+    "ALL" {\p s -> (p, s, ForallToken)}
+    "FORAll" {\p s -> (p, s, ForallToken)}
+    "all" {\p s -> (p, s, ForallToken)}
+    "forall" {\p s -> (p, s, ForallToken)}
 
-    "∃" {\p s -> (p, s, Exists)}
-    "EXISTS" {\p s -> (p, s, Exists)}
-    "exists" {\p s -> (p, s, Exists)}
-    "SOME" {\p s -> (p, s, Exists)}
-    "some" {\p s -> (p, s, Exists)}
+    "∃" {\p s -> (p, s, ExistsToken)}
+    "EXISTS" {\p s -> (p, s, ExistsToken)}
+    "exists" {\p s -> (p, s, ExistsToken)}
+    "SOME" {\p s -> (p, s, ExistsToken)}
+    "some" {\p s -> (p, s, ExistsToken)}
 
-    $digit $digit* {\p s -> (p, s, Number (read s))}
-    $lowerCase $lowerCase* {\ p s -> (p, s, Variable s)}
-    $upperCase $lowerCase $lowerCase* {\ p s -> (p, s, Variable s)}
+    ":" {\p s -> (p, s, Colon)}
+
+    $digit+ {\p s -> (p, s, Number (read s))}
+    $upperCase $name+ {\p s -> (p, s, Pred (head s) (tail s))} 
+    $upperCase "(" $name+ ")" {\p (x:xs) -> (p, (x:xs), Pred x (init (tail xs)))}
+    $name+ {\p s -> (p, s, Name s)}
 
     "A" {\p s -> (p, s, Assump)}
     "E" {\p s -> (p, s, Elimination)}
     "I" {\p s -> (p, s, Introduction)}
 
 {
-data Token = Variable String
+data Token = Name String
            | Number Int
+           | Pred Char String
            | LeftParen
            | RightParen
            | Implies
@@ -78,8 +82,9 @@ data Token = Variable String
            | Absurd
            | Or
            | Bad
-           | Forall
-           | Exists
+           | ForallToken
+           | ExistsToken
+           | Colon
            | Assump
            | Elimination
            | Introduction

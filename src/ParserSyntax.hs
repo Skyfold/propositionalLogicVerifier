@@ -32,6 +32,10 @@ data RuleReference = AssmptionReference
                    | DoubleNegationRefElimi Int
                    | OrRefElimi Int Int DischargeRef Int DischargeRef
                    | OrRefIntro Int
+                   | ForallRefIntro Int
+                   | ForallRefElimi Int
+                   | ExistsRefIntro Int
+                   | ExistsRefElimi Int
                 deriving (Show, Eq, Ord)
 
 type DischargeRef = Int
@@ -55,42 +59,49 @@ convertToTree list = makeProof (V.fromList $ fillList 1 $ L.sortBy (comparing ge
           loeb xs = go where go = fmap ($ go) xs
 
           toProof :: ProofLine -> V.Vector Proof -> Proof
-          toProof (Seq assum num form ref) vec = 
+          toProof (Seq assum num form ref) vec =
               Sequent num (getAssumptions vec assum) form (getRules vec ref)
 
           getAssumptions :: V.Vector Proof -> [Int] -> Assumptions
           getAssumptions vec list = S.fromList (map (sequentFormulae . (vec !!!)) list)
 
-          v!!!n = v V.! (n - 1) 
-            
+          v!!!n = v V.! (n - 1)
+
           getRules :: V.Vector Proof -> RuleReference -> Rule
-          getRules vec rule = 
+          getRules vec rule =
               case rule of
                 AssmptionReference -> AssmptionRule
-                ConjuncRefIntro num1 num2 -> 
+                ConjuncRefIntro num1 num2 ->
                     ConjuncRuleIntro (vec !!! num1) (vec !!! num2)
-                ConjuncRefElimi num1 -> 
-                    ConjuncRuleElimi (vec !!! num1) 
-                ImplicaRefIntro num1 (Just num2) -> 
+                ConjuncRefElimi num1 ->
+                    ConjuncRuleElimi (vec !!! num1)
+                ImplicaRefIntro num1 (Just num2) ->
                     ImplicaRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! num2)))
-                ImplicaRefIntro num1 Nothing -> 
-                    ImplicaRuleIntro (vec !!! num1) Nothing 
-                ImplicaRefElimi num1 num2 -> 
+                ImplicaRefIntro num1 Nothing ->
+                    ImplicaRuleIntro (vec !!! num1) Nothing
+                ImplicaRefElimi num1 num2 ->
                     ImplicaRuleElimi (vec !!! num1) (vec !!! num2)
-                RaaRef num1 num2 (Just x) -> 
+                RaaRef num1 num2 (Just x) ->
                     RaaRule (vec !!! num1) (vec !!! num2) (Just (sequentFormulae (vec !!! x)))
-                RaaRef num1 num2 Nothing -> 
-                    RaaRule (vec !!! num1) (vec !!! num2) Nothing 
+                RaaRef num1 num2 Nothing ->
+                    RaaRule (vec !!! num1) (vec !!! num2) Nothing
                 NegationRefIntro num1 (Just x) ->
                     NegationRuleIntro (vec !!! num1) (Just (sequentFormulae (vec !!! x)))
                 NegationRefIntro num1 Nothing ->
-                    NegationRuleIntro (vec !!! num1)  Nothing 
+                    NegationRuleIntro (vec !!! num1)  Nothing
                 NegationRefElimi -> NegationRuleElimi
-                DoubleNegationRefElimi num1 -> 
-                    DoubleNegationRuleElimi (vec !!! num1) 
+                DoubleNegationRefElimi num1 ->
+                    DoubleNegationRuleElimi (vec !!! num1)
                 OrRefElimi num1 num2 m1 num3 m2 ->
-                    OrRuleElimi (vec !!! num1) (vec !!! num2) 
-                        (sequentFormulae (vec !!! m1)) (vec !!! num3) 
+                    OrRuleElimi (vec !!! num1) (vec !!! num2)
+                        (sequentFormulae (vec !!! m1)) (vec !!! num3)
                         (sequentFormulae (vec !!! m2))
                 OrRefIntro num1 ->
-                    OrRuleIntro (vec !!! num1) 
+                    OrRuleIntro (vec !!! num1)
+                ForallRefIntro num1 ->
+                    ForallRuleIntro (vec !!! num1)
+                ForallRefElimi num1 ->
+                    ForallRuleElimi (vec !!! num1)
+                ExistsRefIntro num1 ->
+                    ExistsRuleElimi (vec !!! num1)
+

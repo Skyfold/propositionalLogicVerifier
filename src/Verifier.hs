@@ -37,6 +37,7 @@ checkAssumptionsWithDischarge assumptions listOfSequentsDischarges lineNum =
                     checkAssumptionsWithDischarge assumptions xs lineNum
                     return False
 
+reportError :: String -> Writer [String] ()
 reportError str = tell [str]
 
 checkAssumptions :: Assumptions -> [Proof] ->  LineNumber -> Writer [String] Bool
@@ -164,7 +165,7 @@ implicaRuleIntroCheck assumptions formulae lineNum fromSequent dischargedAssump 
                 Sentence l Implication r -> case dischargedAssump of
                     Just ds
                         | l == ds && r == (sequentFormulae fromSequent) -> return True
-                        | otherwise -> do 
+                        | otherwise -> do
                             when (not (r == (sequentFormulae fromSequent))) $
                                 reportError $ show lineNum++ " : "
                                     ++show r++
@@ -241,10 +242,10 @@ raaRuleCheck assumptions formulae lineNum fromA fromB maybeFormulae = do
         x <- checkAssumptionsWithDischarge assumptions [(fromA, maybeFormulae), (fromB, maybeFormulae)] lineNum
         y <- isInstanceOfRule
         z <- checkFormulae
-        return (x && y && z) 
+        return (x && y && z)
 
     where isInstanceOfRule :: Writer [String] Bool
-          isInstanceOfRule = 
+          isInstanceOfRule =
               case (sequentFormulae fromA) of
                 Negated x
                     | x == (sequentFormulae fromB) -> return True
@@ -300,7 +301,7 @@ negationRuleIntroCheck assumptions formulae lineNum fromA maybeFormulae = do
         return (x && y && z)
 
     where isInstanceOfRule :: Writer [String] Bool
-          isInstanceOfRule 
+          isInstanceOfRule
             | (sequentFormulae fromA) == Contradiction = return True
             | otherwise = do
                 reportError $ show lineNum++ " : "
@@ -352,7 +353,7 @@ doubleNegationRuleElimiCheck assumptions formulae lineNum fromA = do
                                             " ⊢ "
                                             ++show formulae
                                         return False
-                               _ -> do  
+                               _ -> do
                                    reportError $ show lineNum++ " : "
                                         ++show (sequentFormulae fromA)++
                                         " is not of the form ¬¬p "
@@ -367,11 +368,11 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
         return (x && y && z && p)
 
     where isInstanceOfRule :: Writer [String] Bool
-          isInstanceOfRule = 
+          isInstanceOfRule =
               case (sequentFormulae orSeq) of
                 Sentence l Disjunction r
                     | (S.member leftDischarge (sequentAssump fromLeft) &&
-                        ((l == leftDischarge && r == rightDischarge) || 
+                        ((l == leftDischarge && r == rightDischarge) ||
                         (r == leftDischarge && l == rightDischarge))
                         && (S.member rightDischarge (sequentAssump fromRight))) ->
                             return True
@@ -411,7 +412,7 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
                             ++show (sequentLineNum orSeq)++
                             " with "
                             ++show (sequentFormulae orSeq)
-                        return False 
+                        return False
 
                 _ -> do
                     reportError $ show lineNum++ " : The formulae "
@@ -440,19 +441,19 @@ orRuleElimiCheck assumptions formulae lineNum orSeq fromLeft leftDischarge fromR
                         ++show (sequentLineNum fromRight)++
                         " should be "
                         ++show formulae
-                return False 
+                return False
 
           checkFirstOrSequetAssumptions :: Writer [String] Bool
           checkFirstOrSequetAssumptions
             | S.isSubsetOf (S.delete leftDischarge (S.delete rightDischarge (sequentAssump orSeq))) assumptions =
               return True
             | otherwise = do
-                reportError $ show lineNum++ " : You forgot to copy over assumption[s] " 
-                    ++show (S.difference (sequentAssump orSeq) 
+                reportError $ show lineNum++ " : You forgot to copy over assumption[s] "
+                    ++show (S.difference (sequentAssump orSeq)
                         (S.intersection (sequentAssump orSeq) assumptions))++
                     " from line "
                     ++show (sequentLineNum orSeq)++
-                    "." 
+                    "."
                 return False
 
 orRuleIntroCheck :: Assumptions -> Formulae -> LineNumber -> Proof -> Writer [String] Bool
@@ -462,7 +463,7 @@ orRuleIntroCheck assumptions formulae lineNum fromA = do
         return (x && y)
 
     where isInstanceOfRule :: Writer [String] Bool
-          isInstanceOfRule = 
+          isInstanceOfRule =
               case formulae of
                 Sentence l Disjunction r
                     | l == (sequentFormulae fromA) || r == (sequentFormulae fromA) ->
@@ -512,19 +513,19 @@ proofSequent (Sequent seqLineNum assumptions formulae rule) =
             y <- negationRuleIntroCheck assumptions formulae seqLineNum fromA maybeFormulae
             x <- proofSequent fromA
             return (y && x)
-        NegationRuleElimi -> negationRuleElimCheck assumptions formulae seqLineNum 
+        NegationRuleElimi -> negationRuleElimCheck assumptions formulae seqLineNum
         DoubleNegationRuleElimi fromA -> do
-            y <- doubleNegationRuleElimiCheck assumptions formulae seqLineNum fromA 
+            y <- doubleNegationRuleElimiCheck assumptions formulae seqLineNum fromA
             x <- proofSequent fromA
             return (y && x)
         OrRuleElimi orSeq fromLeft leftDischarge fromRight rightDischarge -> do
-            y <- orRuleElimiCheck assumptions formulae seqLineNum orSeq fromLeft leftDischarge fromRight rightDischarge 
+            y <- orRuleElimiCheck assumptions formulae seqLineNum orSeq fromLeft leftDischarge fromRight rightDischarge
             x <- proofSequent orSeq
             z <- proofSequent fromLeft
             p <- proofSequent fromRight
             return (y && x && z && p)
         OrRuleIntro fromA -> do
-            y <- orRuleIntroCheck assumptions formulae seqLineNum fromA 
+            y <- orRuleIntroCheck assumptions formulae seqLineNum fromA
             x <- proofSequent fromA
             return (y && x)
 
