@@ -1,24 +1,15 @@
 # To Install
 
-You need the [Haskell platform](https://www.haskell.org/platform/)
-Does not work on Windows
+You need the the [stack](https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md) tool.
 
     $ git clone https://github.com/Skyfold/propositionalLogicVerifier
     $ cd propositionalLogicVerifier
-    $ cabal update
-
-Note: if asked to run
-
-    $ cabal install cabal-install
-
-Then run:
-
-    $ cabal configure
-    $ cabal build
-    $ cabal install
+    $ stack setup
+    $ stack build
 
 # To run:
 
-    $ verifier testFile/test
+    $ dist/build/verifier/verifier testFiles/test 
+    $ dist/build/verifier/verifier <file you want to test> 
 
 See other files in testFile to see syntax
